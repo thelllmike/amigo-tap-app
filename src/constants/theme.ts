@@ -1,65 +1,47 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
+import type { TextStyle } from 'react-native';
 
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+/** AmigoTap Owner App palette — see the Spec page of the design. */
+export const C = {
+  bg: '#0A0A0A',
+  card: '#141414',
+  raised: '#1C1C1C',
+  border: '#2A2A2A',
+  text: '#F5F5F5',
+  muted: '#888888',
+  /** Disabled outlines and decoration only — never readable text (2.5:1). */
+  faint: '#555555',
+  accent: '#C8FF00',
+  onAccent: '#0A0A0A',
+  danger: '#FF6B6B',
+  pending: '#FFB547',
+  preparing: '#A9B8FF',
+  scrim: 'rgba(0,0,0,0.6)',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+export const F = {
+  display: 'BricolageGrotesque_700Bold',
+  sans: 'DMSans_400Regular',
+  sansSemi: 'DMSans_600SemiBold',
+  sansBold: 'DMSans_700Bold',
+  mono: 'SpaceMono_400Regular',
+  monoBold: 'SpaceMono_700Bold',
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+/** 4 pt spacing scale. */
+export const S = { xs: 4, sm: 8, md: 12, lg: 16, gutter: 20, sheet: 24, xl: 32 } as const;
+
+export const R = { segment: 10, input: 14, button: 16, card: 20, sheet: 28 } as const;
+
+export const type = {
+  display: { fontFamily: F.display, fontSize: 32, lineHeight: 36, letterSpacing: -0.8, color: C.text },
+  title: { fontFamily: F.display, fontSize: 28, lineHeight: 32, letterSpacing: -0.5, color: C.text },
+  section: { fontFamily: F.display, fontSize: 20, lineHeight: 24, color: C.text },
+  row: { fontFamily: F.sansSemi, fontSize: 16, lineHeight: 22, color: C.text },
+  body: { fontFamily: F.sans, fontSize: 15, lineHeight: 22, color: C.text },
+  caption: { fontFamily: F.sans, fontSize: 13, lineHeight: 19, color: C.muted },
+  number: { fontFamily: F.monoBold, fontSize: 26, lineHeight: 32, color: C.text },
+  label: { fontFamily: F.mono, fontSize: 11, lineHeight: 14, letterSpacing: 1, textTransform: 'uppercase', color: C.muted },
+} satisfies Record<string, TextStyle>;
+
+/** Brand colours offered as page theme swatches in Edit profile. */
+export const THEME_SWATCHES = ['#B5441B', '#3C6B5E', '#B0216A', '#3550E0', '#3E6E3A', '#2A2A2A'];

@@ -1,56 +1,75 @@
-# Welcome to your Expo app 👋
+# AmigoTap Owner App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo (SDK 58) app for AmigoTap business owners, built from the *AmigoTap Owner App* design. It runs on the same
+**linktree Supabase project** as `amigotap.com/linktree`, so every change goes live on the owner's page immediately.
 
-## Get started
+## What's in it
 
-1. Install dependencies
+| Area | Screens |
+| --- | --- |
+| Sign in | Splash, login (wrong-password state, 3-try / 5-minute pause, reset email) |
+| Businesses | Picker with views today + new-order dots, switch-business sheet |
+| Home | Today vs yesterday tiles, pending-orders banner, 7-day views, quick actions |
+| Orders (restaurants) | Live feed (Supabase realtime + 10 s poll), New / Preparing / Ready / Done, order sheet with timeline, new-order toast + ding + haptic |
+| Links (link pages) | Drag to reorder, show/hide, long-press to remove, click counts, Add-a-link sheet that formats WhatsApp / phone / email / handles |
+| Menu (restaurants) | Items by category, sold-out toggle, edit/add item with photo upload, tables with their own QR codes |
+| Stats | Orders: revenue, orders, avg order, busiest table, revenue line, orders by hour/table, top items · Page: views & clicks, per-link CTR |
+| QR & NFC | AmigoTap-design QR (PNG/SVG export), NFC tag link, **write the link to a tag in-app** |
+| More | Team access (invite a manager), order sound / vibrate, reset password, log out |
 
-   ```bash
-   npm install
-   ```
+### Tap to share (phone → phone, like an NFC card)
 
-2. Start the app
+**Profile → Tap to share** turns the owner's phone into an NFC card for the current business:
 
-   ```bash
-   npx expo start
-   ```
+- **Android:** the app emulates an NFC Forum Type 4 tag (host card emulation) that holds
+  `https://amigotap.com/linktree/<slug>?src=nfc`. Any phone that touches it opens the page:
+  the browser shows the web's tap welcome popup, iPhones with the App Clip set up open the clip,
+  and phones with this app installed open it in-app. The code is in `modules/amigo-hce`
+  (Kotlin `HostApduService`), and it only answers readers while that screen is open.
+- **iPhone:** Apple doesn't let third-party apps emulate NFC tags, so the same screen shows a full-screen QR
+  for the other person's camera, a share-link button, and **Write my page to an NFC card**.
 
-In the output, you'll find options to open the app in a
+**Profile → Read a card** reads an AmigoTap card, table stand, or a phone that's sharing, and opens it in the app.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### App Clip (iOS)
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+`react-native-app-clip` adds an `AmigoTapClip` target (`com.amigotap.owner.Clip`). When someone without the app taps
+an AmigoTap card or scans its QR on an iPhone, iOS can open the clip straight onto
+`/linktree/<slug>`: a native card with the page's links, an "Open full page" button, and Apple's
+"Get the full app" banner. The clip never signs anyone in, and NFC, audio, the image picker and the dev client are left out
+of its build to stay under the 15 MB limit.
 
-## Get a fresh project
-
-When you're ready, run:
+## Run it
 
 ```bash
-npm run reset-project
+cp .env.example .env          # fill EXPO_PUBLIC_SUPABASE_ANON_KEY (the web's NEXT_PUBLIC_LINKTREE_SUPABASE_ANON_KEY)
+npm install
+npx expo prebuild --clean
+npx expo run:ios              # or: npx expo run:android --device
+npm run clip                  # build + launch the App Clip scheme in the simulator
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+NFC needs a physical phone and a development build. Expo Go can't load the NFC or HCE native code.
+Check with `npm run typecheck`, `npx expo lint` and `npx expo-doctor`.
 
-### Other setup steps
+## Before release
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+1. **Apple Developer:** register `com.amigotap.owner` (NFC Tag Reading + Associated Domains) and the App Clip ID
+   `com.amigotap.owner.Clip` (parent: the app, product name **Clip**).
+2. **Serve the association file** from the web app at
+   `https://amigotap.com/.well-known/apple-app-site-association` (JSON, no redirect). The template is in
+   `docs/well-known/apple-app-site-association`; replace `TEAMID` with your Apple Team ID. It excludes `/linktree/admin`,
+   `/linktree/login` and table-order paths, so those keep opening on the web.
+3. **App Store Connect → App Clip experiences:** add a default experience for `https://amigotap.com/linktree/`
+   (and advanced experiences per business if you want custom header images).
+4. Android needs nothing extra: receiving phones open the link in the browser.
 
-## Learn more
+## Layout
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/app/            routes (expo-router): (tabs)/ home orders links stats profile more, sheets, linktree/[slug] (public / App Clip)
+src/providers/      auth, business (list + current + prefs), orders (realtime feed + alerts)
+src/lib/            data.ts (all Supabase queries), qr.ts (QR design port), nfc.ts, clip.ts, platforms.ts, format.ts
+src/components/     ui kit (buttons, inputs, chips, tiles, toggles), charts, QR, toast
+modules/amigo-hce/  local Expo module: Android NFC card emulation
+```

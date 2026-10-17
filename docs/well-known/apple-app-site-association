@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.com.amigotap.owner"],
+        "components": [
+          { "/": "/linktree/admin*", "exclude": true },
+          { "/": "/linktree/login*", "exclude": true },
+          { "/": "/linktree/reset-password*", "exclude": true },
+          { "/": "/linktree/order/*", "exclude": true },
+          { "/": "/linktree/*" }
+        ]
+      }
+    ]
+  },
+  "appclips": {
+    "apps": ["TEAMID.com.amigotap.owner.Clip"]
+  }
+}

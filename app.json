@@ -1,26 +1,39 @@
 {
   "expo": {
-    "name": "amigotap-app",
+    "name": "AmigoTap",
     "slug": "amigotap-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "amigotapapp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "amigotap",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0A",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.amigotap.owner",
+      "supportsTablet": false,
+      "associatedDomains": [
+        "applinks:amigotap.com",
+        "appclips:amigotap.com"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.amigotap.owner",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0A0A0A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.NFC"
+      ]
     },
     "web": {
-      "output": "server",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -28,11 +41,52 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0A0A0A",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 96
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-audio",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AmigoTap uses your photos for your page's logo and menu pictures."
+        }
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "AmigoTap uses NFC to read AmigoTap cards and write your page link to a tag.",
+          "includeNdefEntitlement": true
+        }
+      ],
+      [
+        "react-native-app-clip",
+        {
+          "name": "AmigoTap Clip",
+          "deploymentTarget": "16.4",
+          "excludedPackages": [
+            "expo-dev-client",
+            "expo-dev-launcher",
+            "expo-dev-menu",
+            "react-native-nfc-manager",
+            "expo-image-picker",
+            "expo-audio"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
