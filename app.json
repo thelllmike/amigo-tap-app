@@ -51,6 +51,12 @@
       "expo-audio",
       "expo-font",
       [
+        "expo-notifications",
+        {
+          "color": "#C8FF00"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "AmigoTap uses your photos for your page's logo and menu pictures."
@@ -74,7 +80,8 @@
             "expo-dev-menu",
             "react-native-nfc-manager",
             "expo-image-picker",
-            "expo-audio"
+            "expo-audio",
+            "expo-notifications"
           ]
         }
       ],

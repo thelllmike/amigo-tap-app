@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Plus } from 'lucide-react-native';
+import { Car, ChevronRight, Plus } from 'lucide-react-native';
 import { useEffect } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -15,10 +15,12 @@ import { SITE_URL } from '@/lib/config';
 import { greeting } from '@/lib/format';
 import { signOut, useAuth } from '@/providers/auth';
 import { useBusinesses } from '@/providers/business';
+import { usePark } from '@/providers/park';
 
 export default function Businesses() {
   const { session } = useAuth();
   const { businesses, loading, error, viewsToday, pendingCounts, select, refresh } = useBusinesses();
+  const park = usePark();
   const email = session?.user.email ?? '';
   const name = (session?.user.user_metadata?.name as string | undefined) ?? email.split('@')[0];
   const first = name.charAt(0).toUpperCase() + name.slice(1).split(/[._\s]/)[0];
@@ -61,6 +63,24 @@ export default function Businesses() {
         <T style={{ color: C.muted, fontSize: 17 }}>Pick a business to manage.</T>
       </View>
 
+      <Pressable style={styles.park} onPress={() => router.push('/vehicles')} accessibilityRole="button" accessibilityLabel="Park Alert">
+        <View style={styles.parkIcon}>
+          <Car size={22} color={C.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.parkTitle}>Park Alert</Text>
+          <Text style={styles.parkSub}>
+            {park.unread > 0
+              ? `${park.unread} new message${park.unread === 1 ? '' : 's'}`
+              : park.vehicles.length
+                ? `${park.vehicles.length} vehicle${park.vehicles.length === 1 ? '' : 's'}`
+                : 'Get a QR sticker for your vehicle'}
+          </Text>
+        </View>
+        {park.unread > 0 && <View style={styles.parkDot} />}
+        <ChevronRight size={20} color={C.muted} />
+      </Pressable>
+
       {loading ? (
         <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} />
       ) : error ? (
@@ -99,4 +119,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addText: { fontFamily: F.sansSemi, fontSize: 18, color: C.text },
+  park: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  parkIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: C.raised, alignItems: 'center', justifyContent: 'center' },
+  parkTitle: { fontFamily: F.sansSemi, fontSize: 17, color: C.text },
+  parkSub: { fontFamily: F.sans, fontSize: 13, color: C.muted, marginTop: 2 },
+  parkDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.accent },
 });

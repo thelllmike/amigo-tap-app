@@ -18,11 +18,13 @@ import { supabase } from '@/lib/supabase';
 import type { BusinessMember } from '@/lib/types';
 import { signOut, useAuth } from '@/providers/auth';
 import { useBusinesses, useCurrentBusiness } from '@/providers/business';
+import { usePark } from '@/providers/park';
 
 export default function More() {
   const b = useCurrentBusiness();
   const { session } = useAuth();
   const { prefs, setPrefs, businesses } = useBusinesses();
+  const park = usePark();
   const [members, setMembers] = useState<BusinessMember[]>([]);
   const [email, setEmail] = useState('');
   const [inviting, setInviting] = useState(false);
@@ -114,6 +116,12 @@ export default function More() {
               onPress={() => router.push('/appointments')}
             />
           )}
+          <Row
+            title="Park Alert"
+            subtitle={park.unread ? `${park.unread} new message${park.unread === 1 ? '' : 's'}` : 'QR sticker for your vehicle'}
+            right={<Chevron />}
+            onPress={() => router.push('/vehicles')}
+          />
           {businesses.length > 1 && <Row title="Switch business" value={`${businesses.length}`} right={<Chevron />} onPress={() => router.push('/switch-business')} />}
           <Row title="Edit page on the web" right={<Chevron />} onPress={() => WebBrowser.openBrowserAsync(`${SITE_URL}/linktree/admin/${b.id}`)} />
           <Row title="Reset password" subtitle={me} right={<Chevron />} onPress={resetPassword} />

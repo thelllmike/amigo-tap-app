@@ -140,3 +140,55 @@ export interface Appointment {
   status: AppointmentStatus;
   created_at: string;
 }
+
+/* ── Park Alert (see supabase/park-alert.sql in the web repo) ── */
+
+export type VehicleKind = 'car' | 'van' | 'suv' | 'bike' | 'tuk' | 'lorry' | 'other';
+
+export interface Vehicle {
+  id: string;
+  user_id: string;
+  code: string;
+  plate: string;
+  nickname: string | null;
+  kind: VehicleKind;
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  photo_url: string | null;
+  show_full_plate: boolean;
+  is_active: boolean;
+  muted_until: string | null;
+  created_at: string;
+}
+
+export type ChatReason = 'blocking' | 'lights' | 'window' | 'alarm' | 'towing' | 'damage' | 'other';
+
+export interface VehicleChat {
+  id: string;
+  vehicle_id: string;
+  owner_id: string;
+  reason: ChatReason;
+  lat: number | null;
+  lng: number | null;
+  status: 'open' | 'moved' | 'closed';
+  blocked: boolean;
+  owner_read_at: string | null;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface VehicleMessage {
+  id: string;
+  chat_id: string;
+  sender: 'scanner' | 'owner';
+  body: string;
+  created_at: string;
+}
+
+export interface InboxRow {
+  chat: VehicleChat;
+  vehicle: Pick<Vehicle, 'id' | 'plate' | 'nickname' | 'kind' | 'photo_url'>;
+  last: Pick<VehicleMessage, 'sender' | 'body' | 'created_at'> | null;
+  unread: boolean;
+}

@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { IS_CLIP } from '@/lib/clip';
+import { unregisterPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 
 interface AuthValue {
@@ -34,6 +35,8 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-export function signOut() {
+export async function signOut() {
+  // While still signed in, so the database lets us remove this phone's token.
+  await unregisterPush();
   return supabase.auth.signOut();
 }

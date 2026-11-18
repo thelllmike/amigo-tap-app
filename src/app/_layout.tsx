@@ -15,6 +15,7 @@ import { IS_CLIP } from '@/lib/clip';
 import { AuthProvider, useAuth } from '@/providers/auth';
 import { BusinessRoot } from '@/providers/business';
 import { OrdersProvider } from '@/providers/orders';
+import { ParkRoot } from '@/providers/park';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -75,6 +76,9 @@ function RootStack() {
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="menu" />
         <Stack.Screen name="appointments" />
+        <Stack.Screen name="vehicles" />
+        <Stack.Screen name="vehicle/[id]" />
+        <Stack.Screen name="vehicle-chat/[id]" />
         <Stack.Screen name="manage-links" />
         <Stack.Screen name="tap-share" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
@@ -97,11 +101,13 @@ export default function RootLayout() {
       <ThemeProvider value={theme}>
         <AuthProvider>
           <BusinessRoot>
-            <OrdersProvider>
-              <StatusBar style="light" />
-              <RootStack />
-              <OrderToast />
-            </OrdersProvider>
+            <ParkRoot>
+              <OrdersProvider>
+                <StatusBar style="light" />
+                <RootStack />
+                <OrderToast />
+              </OrdersProvider>
+            </ParkRoot>
           </BusinessRoot>
         </AuthProvider>
       </ThemeProvider>
