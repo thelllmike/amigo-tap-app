@@ -12,6 +12,7 @@ import { T } from '@/components/ui/text';
 import { C, F, type } from '@/constants/theme';
 import { SITE_URL } from '@/lib/config';
 import { fetchMembers, inviteMember } from '@/lib/data';
+import { bookingEnabled } from '@/lib/booking';
 import { isRestaurant } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 import type { BusinessMember } from '@/lib/types';
@@ -105,6 +106,14 @@ export default function More() {
       <View style={{ gap: 12 }}>
         <SectionLabel>Account</SectionLabel>
         <Card style={{ paddingVertical: 4 }}>
+          {(bookingEnabled(b) || b.type === 'linkpage') && (
+            <Row
+              title="Appointments"
+              subtitle={bookingEnabled(b) ? 'Bookings, staff on leave' : 'Off · set up on the web'}
+              right={<Chevron />}
+              onPress={() => router.push('/appointments')}
+            />
+          )}
           {businesses.length > 1 && <Row title="Switch business" value={`${businesses.length}`} right={<Chevron />} onPress={() => router.push('/switch-business')} />}
           <Row title="Edit page on the web" right={<Chevron />} onPress={() => WebBrowser.openBrowserAsync(`${SITE_URL}/linktree/admin/${b.id}`)} />
           <Row title="Reset password" subtitle={me} right={<Chevron />} onPress={resetPassword} />

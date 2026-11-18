@@ -74,6 +74,7 @@ function RootStack() {
         <Stack.Screen name="menu-item" options={{ ...sheet, sheetAllowedDetents: [0.92] }} />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="menu" />
+        <Stack.Screen name="appointments" />
         <Stack.Screen name="manage-links" />
         <Stack.Screen name="tap-share" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />

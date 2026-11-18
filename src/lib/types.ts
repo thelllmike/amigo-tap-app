@@ -18,6 +18,8 @@ export interface Business {
   enable_ordering: boolean;
   card_config: { person_name?: string; person_title?: string } | null;
   page_config?: ({ template?: PageTemplate } & Record<string, unknown>) | null;
+  /** Appointment booking settings; `enabled` switches the feature on. */
+  booking_config?: { enabled?: boolean; slot_minutes?: number; timezone?: string } & Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -99,4 +101,42 @@ export interface LinkStat {
   link_id: string | null;
   day: string;
   count: number;
+}
+
+/* ── Appointments (web: types/appointments.ts, supabase/appointments.sql) ── */
+
+export interface TimeRange {
+  start: string;
+  end: string;
+}
+
+export interface Staff {
+  id: string;
+  business_id: string;
+  name: string;
+  photo_url: string | null;
+  specialization: string | null;
+  /** Weekly hours keyed by weekday "0" (Sunday) … "6". */
+  schedule: Partial<Record<string, TimeRange[]>>;
+  is_active: boolean;
+  display_order: number;
+}
+
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+
+export interface Appointment {
+  id: string;
+  business_id: string;
+  staff_id: string | null;
+  staff_name: string | null;
+  customer_name: string;
+  customer_phone: string;
+  note: string | null;
+  /** YYYY-MM-DD, the business's local date. */
+  appt_date: string;
+  /** HH:MM:SS, the business's local time. */
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  created_at: string;
 }

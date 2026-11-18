@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { ChevronDown, Link as LinkIcon, NotebookText, Pencil, QrCode, Share as ShareIcon, Smartphone, type LucideIcon } from 'lucide-react-native';
+import { CalendarCheck, ChevronDown, Link as LinkIcon, NotebookText, Pencil, QrCode, Share as ShareIcon, Smartphone, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
@@ -10,10 +10,11 @@ import { IconButton } from '@/components/ui/button';
 import { Avatar, Card, StatTile } from '@/components/ui/surface';
 import { T } from '@/components/ui/text';
 import { C, F, R, type } from '@/constants/theme';
-import { clicksOn, fetchLinkStats, series, viewsOn } from '@/lib/data';
+import { bookingEnabled, formatTime, isLive } from '@/lib/booking';
+import { clicksOn, fetchAppointments, fetchLinkStats, series, viewsOn } from '@/lib/data';
 import { compact, dayKey, dayOf, delta, minutesSince } from '@/lib/format';
 import { KIND_LABEL, businessKind, displayUrl, isRestaurant, pageUrl } from '@/lib/links';
-import type { LinkStat } from '@/lib/types';
+import type { Appointment, LinkStat } from '@/lib/types';
 import { useCurrentBusiness } from '@/providers/business';
 import { useOrders } from '@/providers/orders';
 
@@ -24,9 +25,17 @@ export default function Home() {
   const [stats, setStats] = useState<LinkStat[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  const booking = bookingEnabled(b);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+
   const load = useCallback(async () => {
-    setStats(await fetchLinkStats(b.id, 14));
-  }, [b.id]);
+    const [linkStats, bookings] = await Promise.all([
+      fetchLinkStats(b.id, 14),
+      booking ? fetchAppointments(b.id, dayKey(0)).catch(() => []) : Promise.resolve([]),
+    ]);
+    setStats(linkStats);
+    setAppts(bookings);
+  }, [b.id, booking]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,6 +127,8 @@ export default function Home() {
         </View>
       )}
 
+      {booking && <BookingsToday appts={appts} today={today} />}
+
       <Card style={{ gap: 18 }}>
         <View style={styles.sectionHead}>
           <Text style={styles.cardTitle}>Page views · 7 days</Text>
@@ -143,6 +154,31 @@ export default function Home() {
         </View>
       </View>
     </Screen>
+  );
+}
+
+/** Today's bookings at a glance, with the next one up. */
+function BookingsToday({ appts, today }: { appts: Appointment[]; today: string }) {
+  const todays = appts.filter((a) => a.appt_date === today && isLive(a.status));
+  const fresh = appts.filter((a) => a.status === 'pending').length;
+  const nowMin = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Colombo' }).format(new Date()).replace(':', ''));
+  const next = todays.find((a) => Number(a.start_time.slice(0, 5).replace(':', '')) >= nowMin);
+  return (
+    <Pressable style={({ pressed }) => [styles.booking, pressed && { backgroundColor: C.raised }]} onPress={() => router.push('/appointments')} accessibilityRole="button">
+      <View style={styles.bookingIcon}>
+        <CalendarCheck size={26} color={C.accent} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardTitle}>
+          {todays.length} booking{todays.length === 1 ? '' : 's'} today
+        </Text>
+        <Text style={type.caption} numberOfLines={1}>
+          {next ? `Next ${formatTime(next.start_time)} · ${next.customer_name}${next.staff_name ? ` with ${next.staff_name}` : ''}` : 'No more bookings today'}
+          {fresh > 0 ? ` · ${fresh} new` : ''}
+        </Text>
+      </View>
+      <Text style={styles.bookingGo}>Open</Text>
+    </Pressable>
   );
 }
 
@@ -177,6 +213,9 @@ const styles = StyleSheet.create({
   pendingBtn: { backgroundColor: C.onAccent, borderRadius: 14, paddingHorizontal: 16, height: 54, justifyContent: 'center' },
   pendingBtnText: { fontFamily: F.sansBold, fontSize: 16, color: C.text },
   actions: { flexDirection: 'row', gap: 10 },
+  booking: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: R.card, backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  bookingIcon: { width: 52, height: 52, borderRadius: 14, backgroundColor: C.raised, alignItems: 'center', justifyContent: 'center' },
+  bookingGo: { fontFamily: F.sansBold, fontSize: 15, color: C.accent },
   action: { flex: 1, height: 92, borderRadius: R.card, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 6 },
   actionText: { fontFamily: F.sansSemi, fontSize: 14, color: C.text },
 });

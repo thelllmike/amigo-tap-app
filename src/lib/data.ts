@@ -3,7 +3,7 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { ANALYTICS_TZ, ASSET_BUCKET } from '@/lib/config';
 import { dayKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
-import type { Business, BusinessMember, LinkStat, MenuCategory, MenuItem, Order, OrderStatus, RestaurantTable, SocialLink } from '@/lib/types';
+import type { Appointment, AppointmentStatus, Business, BusinessMember, LinkStat, MenuCategory, MenuItem, Order, OrderStatus, RestaurantTable, SocialLink, Staff } from '@/lib/types';
 
 /**
  * Every query the owner app makes. They run as the signed-in user, so the
@@ -87,6 +87,36 @@ export async function fetchOrders(businessId: string, sinceDays = 62): Promise<O
 
 export async function setOrderStatus(order: Pick<Order, 'id' | 'business_id'>, status: OrderStatus) {
   must(await supabase.from('orders').update({ status }).eq('id', order.id).eq('business_id', order.business_id).select('id'));
+}
+
+/* ── Appointments ── */
+
+/** Bookings from `fromDate` (YYYY-MM-DD) on, soonest first. */
+export async function fetchAppointments(businessId: string, fromDate: string): Promise<Appointment[]> {
+  const res = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('business_id', businessId)
+    .gte('appt_date', fromDate)
+    .order('appt_date', { ascending: true })
+    .order('start_time', { ascending: true })
+    .limit(1000);
+  return must(res) as Appointment[];
+}
+
+export async function setAppointmentStatus(appt: Pick<Appointment, 'id' | 'business_id'>, status: AppointmentStatus) {
+  const res = await supabase.from('appointments').update({ status }).eq('id', appt.id).eq('business_id', appt.business_id).select('id');
+  if (res.error?.code === '23505') throw new Error('That time has been booked again since it was cancelled.');
+  must(res);
+}
+
+export async function fetchStaff(businessId: string): Promise<Staff[]> {
+  return must(await supabase.from('staff').select('*').eq('business_id', businessId).order('display_order')) as Staff[];
+}
+
+/** "On leave" switch: hides the person from the booking page. */
+export async function setStaffActive(id: string, isActive: boolean) {
+  must(await supabase.from('staff').update({ is_active: isActive }).eq('id', id).select('id'));
 }
 
 /* ── Links ── */
