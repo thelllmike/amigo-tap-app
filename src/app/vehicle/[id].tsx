@@ -20,7 +20,7 @@ import { usePark } from '@/providers/park';
 /** Add a vehicle (id "new"), or edit one and get its QR / NFC sticker. */
 export default function VehicleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session } = useAuth();
+  const { session, isSuperadmin } = useAuth();
   const { vehicles, setVehicles, refresh } = usePark();
   const existing = id === 'new' ? null : (vehicles.find((v) => v.id === id) ?? null);
 
@@ -128,8 +128,11 @@ export default function VehicleScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen footer={<Button title={existing ? 'Save changes' : 'Add vehicle'} onPress={save} loading={saving} flex />}>
+      <Screen footer={existing || isSuperadmin ? <Button title={existing ? 'Save changes' : 'Add vehicle'} onPress={save} loading={saving} flex /> : undefined}>
         <BackHeader title={existing ? vehicleTitle(existing) : 'Add a vehicle'} />
+        {!existing && !isSuperadmin && (
+          <Text style={type.body}>Vehicles are added by the AmigoTap team. Contact hello@amigotap.com to get a Park Alert sticker.</Text>
+        )}
 
         {existing && (
           <View style={{ gap: 12 }}>
@@ -199,7 +202,7 @@ export default function VehicleScreen() {
               </View>
             )}
             <Text style={type.caption}>Messages still arrive while muted; your phone just stays quiet.</Text>
-            <Button title="Delete vehicle" variant="destructive" onPress={confirmDelete} />
+            {isSuperadmin && <Button title="Delete vehicle" variant="destructive" onPress={confirmDelete} />}
           </View>
         )}
       </Screen>

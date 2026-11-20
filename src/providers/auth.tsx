@@ -10,13 +10,18 @@ interface AuthValue {
   session: Session | null;
   /** False until the stored session has been restored. */
   ready: boolean;
+  /** Superadmins alone may create or delete pages, vehicles and pets. */
+  isSuperadmin: boolean;
 }
 
-const AuthContext = createContext<AuthValue>({ session: null, ready: false });
+const AuthContext = createContext<AuthValue>({ session: null, ready: false, isSuperadmin: false });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(IS_CLIP);
+  // Keyed by user, so a stale answer for someone else never applies.
+  const [role, setRole] = useState<{ uid: string; admin: boolean } | null>(null);
+  const uid = session?.user.id;
 
   useEffect(() => {
     // The App Clip is a public viewer: it never signs anyone in.
@@ -29,7 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  return <AuthContext.Provider value={{ session, ready }}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    if (!uid) return;
+    void supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', uid)
+      .maybeSingle()
+      .then(({ data }) => setRole({ uid, admin: data?.role === 'superadmin' }));
+  }, [uid]);
+
+  const isSuperadmin = !!uid && role?.uid === uid && role.admin;
+
+  return <AuthContext.Provider value={{ session, ready, isSuperadmin }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

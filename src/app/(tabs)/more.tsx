@@ -22,7 +22,7 @@ import { usePark } from '@/providers/park';
 
 export default function More() {
   const b = useCurrentBusiness();
-  const { session } = useAuth();
+  const { session, isSuperadmin } = useAuth();
   const { prefs, setPrefs, businesses, refresh } = useBusinesses();
   const park = usePark();
   const [members, setMembers] = useState<BusinessMember[]>([]);
@@ -192,7 +192,7 @@ export default function More() {
             ])
           }
         />
-        {owner && <Button title={`Delete this ${pageKind}`} variant="destructive" small onPress={confirmDeletePage} loading={deletingPage} />}
+        {isSuperadmin && <Button title={`Delete this ${pageKind}`} variant="destructive" small onPress={confirmDeletePage} loading={deletingPage} />}
         <Button title="Delete account" variant="destructive" small onPress={confirmDelete} loading={deleting} />
         <Text style={[type.caption, { textAlign: 'center' }]}>Deletes your login and all your AmigoTap data. This can’t be undone.</Text>
       </View>

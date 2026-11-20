@@ -19,7 +19,7 @@ type Tab = 'inbox' | 'vehicles';
 
 /** Park Alert home: messages from people who scanned a sticker, and the owner's vehicles. */
 export default function VehiclesScreen() {
-  const { session } = useAuth();
+  const { session, isSuperadmin } = useAuth();
   const { businesses } = useBusinesses();
   const { vehicles, inbox, unread, loading, push, refresh, enablePush } = usePark();
   const [tab, setTab] = useState<Tab>('inbox');
@@ -46,7 +46,8 @@ export default function VehiclesScreen() {
         await refresh();
         setRefreshing(false);
       }}
-      footer={<Button title="Add a vehicle" icon={Plus} onPress={() => router.push('/vehicle/new')} flex />}>
+      // Only an AmigoTap admin adds vehicles.
+      footer={isSuperadmin ? <Button title="Add a vehicle" icon={Plus} onPress={() => router.push('/vehicle/new')} flex /> : undefined}>
       {isRoot ? (
         <View style={styles.rootHeader}>
           <Text style={type.title}>Park Alert</Text>
@@ -169,7 +170,7 @@ function InboxItem({ r, now, last }: { r: InboxRow; now: number; last: boolean }
 
 function Intro() {
   const steps = [
-    'Add your vehicle and print its QR sticker (or write it to an NFC sticker).',
+    'Get your vehicle’s QR or NFC sticker from AmigoTap and put it on the windscreen.',
     'Put it on the inside of your windscreen.',
     'If you’re blocking someone or left your lights on, they scan it and you get a notification here. No numbers are shared.',
   ];
