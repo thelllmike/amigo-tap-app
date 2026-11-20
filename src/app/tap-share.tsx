@@ -17,6 +17,9 @@ import { addReadListener, isHceSupported, isNfcEnabled, openNfcSettings, startCa
 
 type Mode = 'checking' | 'ready' | 'sent' | 'nfc-off' | 'unsupported' | 'error';
 
+/** Dev only: show the Android sharing screen in a simulator, for store screenshots. */
+const PREVIEW_HCE = __DEV__ && process.env.EXPO_PUBLIC_PREVIEW_HCE === '1';
+
 /**
  * "Tap to share": the phone becomes an NFC card. Another phone held against it
  * reads the page link and opens it — in the browser with the tap welcome
@@ -29,14 +32,15 @@ export default function TapShare() {
   const b = useCurrentBusiness();
   const insets = useSafeAreaInsets();
   const url = nfcUrl(b.slug);
-  const [hce] = useState(isHceSupported);
-  const [mode, setMode] = useState<Mode>(hce ? 'checking' : 'unsupported');
+  const [hce] = useState(() => PREVIEW_HCE || isHceSupported());
+  const [mode, setMode] = useState<Mode>(PREVIEW_HCE ? 'ready' : hce ? 'checking' : 'unsupported');
   const [shares, setShares] = useState(0);
   const [canWrite, setCanWrite] = useState(false);
   const [writing, setWriting] = useState(false);
 
   // Start/stop emulation with the screen, and re-check NFC after Settings.
   useEffect(() => {
+    if (PREVIEW_HCE) return;
     if (!hce) {
       void nfcSupported().then(setCanWrite);
       return;

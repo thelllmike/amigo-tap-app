@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/surface';
 import { T } from '@/components/ui/text';
 import { C, F, R, S, type } from '@/constants/theme';
-import { clock, minutesSince, money } from '@/lib/format';
+import { ago, clock, money } from '@/lib/format';
 import type { OrderStatus } from '@/lib/types';
 import { STATUS_FLOW, useOrders } from '@/providers/orders';
 
@@ -63,7 +63,7 @@ export default function OrderDetail() {
             </T>
           </View>
           <Badge
-            label={order.status === 'pending' ? `Pending · ${minutesSince(order.created_at)} min` : flow.label}
+            label={order.status === 'pending' ? `Pending · ${ago(order.created_at)}` : flow.label}
             tone={order.status === 'pending' ? 'pending' : order.status === 'confirmed' ? 'preparing' : order.status === 'ready' ? 'ready' : 'done'}
           />
         </View>

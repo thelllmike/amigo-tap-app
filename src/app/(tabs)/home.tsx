@@ -12,7 +12,7 @@ import { T } from '@/components/ui/text';
 import { C, F, R, type } from '@/constants/theme';
 import { bookingEnabled, formatTime, isLive } from '@/lib/booking';
 import { clicksOn, fetchAppointments, fetchLinkStats, series, viewsOn } from '@/lib/data';
-import { compact, dayKey, dayOf, delta, minutesSince } from '@/lib/format';
+import { ago, compact, dayKey, dayOf, delta } from '@/lib/format';
 import { KIND_LABEL, businessKind, displayUrl, isRestaurant, pageUrl } from '@/lib/links';
 import type { Appointment, LinkStat } from '@/lib/types';
 import { useCurrentBusiness } from '@/providers/business';
@@ -118,7 +118,7 @@ export default function Home() {
           <View style={{ flex: 1 }}>
             <Text style={styles.pendingTitle}>Pending orders</Text>
             <Text style={styles.pendingSub}>
-              Oldest waiting {minutesSince(oldest.created_at)} min{oldest.table_name ? ` · ${oldest.table_name}` : ''}
+              Oldest waiting {ago(oldest.created_at)}{oldest.table_name ? ` · ${oldest.table_name}` : ''}
             </Text>
           </View>
           <Pressable style={styles.pendingBtn} onPress={() => router.navigate('/orders')} accessibilityRole="button">

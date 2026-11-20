@@ -2,22 +2,52 @@ import { BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesq
 import { DMSans_400Regular, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { useFonts } from 'expo-font';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OrderToast } from '@/components/order-toast';
 import { Splash } from '@/components/splash';
 import { C, R } from '@/constants/theme';
 import { IS_CLIP } from '@/lib/clip';
+import { supabase } from '@/lib/supabase';
 import { AuthProvider, useAuth } from '@/providers/auth';
 import { BusinessRoot } from '@/providers/business';
 import { OrdersProvider } from '@/providers/orders';
 import { ParkRoot } from '@/providers/park';
 
 SplashScreen.preventAutoHideAsync();
+
+// Dev only: a local script picks the screen to show, for store screenshots.
+if (__DEV__ && process.env.EXPO_PUBLIC_PREVIEW_HCE === '1') {
+  LogBox.ignoreAllLogs();
+  let last = '';
+  setInterval(() => {
+    fetch('http://localhost:8099/route')
+      .then((r) => r.text())
+      .then((path) => {
+        if (!path || path === last) return;
+        last = path;
+        const to = path.split('#')[0];
+        if (to === 'back') {
+          if (router.canGoBack()) router.back();
+        }
+        else if (to.startsWith('latest-order:')) {
+          void supabase
+            .from('orders')
+            .select('id')
+            .eq('business_id', to.slice('latest-order:'.length))
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .then(({ data }) => data?.[0] && router.navigate(`/order/${data[0].id}` as never));
+        } else router.navigate(to as never);
+      })
+      .catch(() => {});
+  }, 700);
+}
 
 const theme = {
   ...DarkTheme,
