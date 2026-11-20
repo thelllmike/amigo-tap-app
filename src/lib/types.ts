@@ -18,6 +18,8 @@ export interface Business {
   enable_ordering: boolean;
   card_config: { person_name?: string; person_title?: string } | null;
   page_config?: ({ template?: PageTemplate } & Record<string, unknown>) | null;
+  /** Appointment booking settings; `enabled` switches the feature on. */
+  booking_config?: { enabled?: boolean; slot_minutes?: number; timezone?: string } & Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -99,4 +101,94 @@ export interface LinkStat {
   link_id: string | null;
   day: string;
   count: number;
+}
+
+/* ── Appointments (web: types/appointments.ts, supabase/appointments.sql) ── */
+
+export interface TimeRange {
+  start: string;
+  end: string;
+}
+
+export interface Staff {
+  id: string;
+  business_id: string;
+  name: string;
+  photo_url: string | null;
+  specialization: string | null;
+  /** Weekly hours keyed by weekday "0" (Sunday) … "6". */
+  schedule: Partial<Record<string, TimeRange[]>>;
+  is_active: boolean;
+  display_order: number;
+}
+
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+
+export interface Appointment {
+  id: string;
+  business_id: string;
+  staff_id: string | null;
+  staff_name: string | null;
+  customer_name: string;
+  customer_phone: string;
+  note: string | null;
+  /** YYYY-MM-DD, the business's local date. */
+  appt_date: string;
+  /** HH:MM:SS, the business's local time. */
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  created_at: string;
+}
+
+/* ── Park Alert (see supabase/park-alert.sql in the web repo) ── */
+
+export type VehicleKind = 'car' | 'van' | 'suv' | 'bike' | 'tuk' | 'lorry' | 'other';
+
+export interface Vehicle {
+  id: string;
+  user_id: string;
+  code: string;
+  plate: string;
+  nickname: string | null;
+  kind: VehicleKind;
+  make: string | null;
+  model: string | null;
+  color: string | null;
+  photo_url: string | null;
+  show_full_plate: boolean;
+  is_active: boolean;
+  muted_until: string | null;
+  created_at: string;
+}
+
+export type ChatReason = 'blocking' | 'lights' | 'window' | 'alarm' | 'towing' | 'damage' | 'other';
+
+export interface VehicleChat {
+  id: string;
+  vehicle_id: string;
+  owner_id: string;
+  reason: ChatReason;
+  lat: number | null;
+  lng: number | null;
+  status: 'open' | 'moved' | 'closed';
+  blocked: boolean;
+  owner_read_at: string | null;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface VehicleMessage {
+  id: string;
+  chat_id: string;
+  sender: 'scanner' | 'owner';
+  body: string;
+  created_at: string;
+}
+
+export interface InboxRow {
+  chat: VehicleChat;
+  vehicle: Pick<Vehicle, 'id' | 'plate' | 'nickname' | 'kind' | 'photo_url'>;
+  last: Pick<VehicleMessage, 'sender' | 'body' | 'created_at'> | null;
+  unread: boolean;
 }

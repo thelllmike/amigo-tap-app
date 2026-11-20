@@ -3,7 +3,24 @@ import { decode as decodeBase64 } from 'base64-arraybuffer';
 import { ANALYTICS_TZ, ASSET_BUCKET } from '@/lib/config';
 import { dayKey } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
-import type { Business, BusinessMember, LinkStat, MenuCategory, MenuItem, Order, OrderStatus, RestaurantTable, SocialLink } from '@/lib/types';
+import type {
+  Appointment,
+  AppointmentStatus,
+  Business,
+  BusinessMember,
+  InboxRow,
+  LinkStat,
+  MenuCategory,
+  MenuItem,
+  Order,
+  OrderStatus,
+  RestaurantTable,
+  SocialLink,
+  Staff,
+  Vehicle,
+  VehicleChat,
+  VehicleMessage,
+} from '@/lib/types';
 
 /**
  * Every query the owner app makes. They run as the signed-in user, so the
@@ -87,6 +104,36 @@ export async function fetchOrders(businessId: string, sinceDays = 62): Promise<O
 
 export async function setOrderStatus(order: Pick<Order, 'id' | 'business_id'>, status: OrderStatus) {
   must(await supabase.from('orders').update({ status }).eq('id', order.id).eq('business_id', order.business_id).select('id'));
+}
+
+/* ── Appointments ── */
+
+/** Bookings from `fromDate` (YYYY-MM-DD) on, soonest first. */
+export async function fetchAppointments(businessId: string, fromDate: string): Promise<Appointment[]> {
+  const res = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('business_id', businessId)
+    .gte('appt_date', fromDate)
+    .order('appt_date', { ascending: true })
+    .order('start_time', { ascending: true })
+    .limit(1000);
+  return must(res) as Appointment[];
+}
+
+export async function setAppointmentStatus(appt: Pick<Appointment, 'id' | 'business_id'>, status: AppointmentStatus) {
+  const res = await supabase.from('appointments').update({ status }).eq('id', appt.id).eq('business_id', appt.business_id).select('id');
+  if (res.error?.code === '23505') throw new Error('That time has been booked again since it was cancelled.');
+  must(res);
+}
+
+export async function fetchStaff(businessId: string): Promise<Staff[]> {
+  return must(await supabase.from('staff').select('*').eq('business_id', businessId).order('display_order')) as Staff[];
+}
+
+/** "On leave" switch: hides the person from the booking page. */
+export async function setStaffActive(id: string, isActive: boolean) {
+  must(await supabase.from('staff').update({ is_active: isActive }).eq('id', id).select('id'));
 }
 
 /* ── Links ── */
@@ -176,13 +223,124 @@ export async function inviteMember(businessId: string, email: string) {
   if (res.error) throw new Error(res.error.code === '23505' ? 'That person already has access here.' : res.error.message);
 }
 
+/* ── Deleting ── */
+
+/**
+ * Storage paths an item's rows point at (supabase/delete-with-images.sql in the
+ * web repo). Read them BEFORE deleting the row; afterwards they're gone.
+ */
+export async function filePathsFor(fn: 'vehicle_file_paths' | 'my_file_paths', args?: Record<string, string>) {
+  const { data, error } = await supabase.rpc(fn, args);
+  return error ? [] : ((data as string[] | null) ?? []);
+}
+
+/** Best effort: a leftover file must never make a successful delete look failed. */
+export async function removeFiles(paths: string[]) {
+  for (let i = 0; i < paths.length; i += 100) {
+    await supabase.storage.from(ASSET_BUCKET).remove(paths.slice(i, i + 100)).catch(() => {});
+  }
+}
+
+/** Deletes a page (link page, business card or social tree) the user owns, with all its data and images. */
+export async function deleteBusiness(id: string) {
+  // One transaction in the database (supabase/delete-with-images.sql); returns the files to remove.
+  const { data: files, error } = await supabase.rpc('delete_business', { p_business: id });
+  if (error) throw new Error(error.message);
+  await removeFiles((files as string[] | null) ?? []);
+}
+
 /* ── Uploads ── */
 
 /** Uploads a picked image to the same bucket and folder layout the web editor uses. */
-export async function uploadImage(prefix: 'avatars' | 'menu', userId: string, base64: string, mime = 'image/jpeg') {
+export async function uploadImage(prefix: 'avatars' | 'menu' | 'vehicles', userId: string, base64: string, mime = 'image/jpeg') {
   const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
   const path = `${prefix}/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const { error } = await supabase.storage.from(ASSET_BUCKET).upload(path, decodeBase64(base64), { contentType: mime, upsert: false });
   if (error) throw new Error(error.message);
   return supabase.storage.from(ASSET_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/* ── Park Alert ── */
+
+export async function fetchVehicles(userId: string): Promise<Vehicle[]> {
+  const { data, error } = await supabase.from('vehicles').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Vehicle[];
+}
+
+export type VehicleInput = Pick<Vehicle, 'plate' | 'nickname' | 'kind' | 'make' | 'model' | 'color' | 'photo_url' | 'show_full_plate' | 'is_active'>;
+
+export async function saveVehicle(userId: string, id: string | null, input: VehicleInput): Promise<Vehicle> {
+  const row = { ...input, plate: input.plate.trim().toUpperCase().replace(/\s+/g, ' ') };
+  const res = id
+    ? await supabase.from('vehicles').update({ ...row, updated_at: new Date().toISOString() }).eq('id', id).select('*').single()
+    : await supabase.from('vehicles').insert({ ...row, user_id: userId }).select('*').single();
+  if (res.error) throw new Error(res.error.message);
+  return res.data as Vehicle;
+}
+
+export async function muteVehicle(id: string, minutes: number | null) {
+  const until = minutes ? new Date(Date.now() + minutes * 60_000).toISOString() : null;
+  const { error } = await supabase.from('vehicles').update({ muted_until: until }).eq('id', id);
+  if (error) throw new Error(error.message);
+  return until;
+}
+
+export async function deleteVehicle(id: string) {
+  const files = await filePathsFor('vehicle_file_paths', { p_vehicle: id });
+  const { error } = await supabase.from('vehicles').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  await removeFiles(files);
+}
+
+/** The owner's chats, newest first, with each chat's latest message. */
+export async function fetchInbox(userId: string, limit = 50): Promise<InboxRow[]> {
+  const { data: chats, error } = await supabase
+    .from('vehicle_chats')
+    .select('*, vehicles(id, plate, nickname, kind, photo_url)')
+    .eq('owner_id', userId)
+    .order('last_message_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  const rows = (chats ?? []) as (VehicleChat & { vehicles: InboxRow['vehicle'] })[];
+  if (!rows.length) return [];
+
+  const { data: msgs } = await supabase
+    .from('vehicle_messages')
+    .select('chat_id, sender, body, created_at')
+    .in('chat_id', rows.map((c) => c.id))
+    .order('created_at', { ascending: false })
+    .limit(rows.length * 15);
+
+  const last = new Map<string, InboxRow['last']>();
+  const lastFromScanner = new Map<string, string>();
+  for (const m of (msgs ?? []) as VehicleMessage[]) {
+    if (!last.has(m.chat_id)) last.set(m.chat_id, m);
+    if (m.sender === 'scanner' && !lastFromScanner.has(m.chat_id)) lastFromScanner.set(m.chat_id, m.created_at);
+  }
+  return rows.map(({ vehicles, ...chat }) => {
+    const at = lastFromScanner.get(chat.id);
+    return { chat, vehicle: vehicles, last: last.get(chat.id) ?? null, unread: !!at && !chat.blocked && (!chat.owner_read_at || at > chat.owner_read_at) };
+  });
+}
+
+export async function fetchChat(chatId: string) {
+  const [{ data: chat, error }, { data: msgs }] = await Promise.all([
+    supabase.from('vehicle_chats').select('*, vehicles(*)').eq('id', chatId).maybeSingle(),
+    supabase.from('vehicle_messages').select('*').eq('chat_id', chatId).order('created_at', { ascending: true }),
+  ]);
+  if (error) throw new Error(error.message);
+  if (!chat) return null;
+  const { vehicles, ...rest } = chat as VehicleChat & { vehicles: Vehicle };
+  return { chat: rest as VehicleChat, vehicle: vehicles, messages: (msgs ?? []) as VehicleMessage[] };
+}
+
+export async function sendOwnerReply(userId: string, chatId: string, body: string) {
+  const { error } = await supabase.from('vehicle_messages').insert({ chat_id: chatId, owner_id: userId, sender: 'owner', body: body.trim().slice(0, 300) });
+  if (error) throw new Error(error.code === '42501' ? 'This chat has ended.' : error.message);
+}
+
+export async function updateChat(chatId: string, patch: Partial<Pick<VehicleChat, 'status' | 'blocked' | 'owner_read_at'>>) {
+  const { error } = await supabase.from('vehicle_chats').update(patch).eq('id', chatId);
+  if (error) throw new Error(error.message);
 }

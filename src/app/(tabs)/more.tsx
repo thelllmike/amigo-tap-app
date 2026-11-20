@@ -11,21 +11,26 @@ import { Avatar, Badge, Card, Row, SectionLabel, Toggle } from '@/components/ui/
 import { T } from '@/components/ui/text';
 import { C, F, type } from '@/constants/theme';
 import { SITE_URL } from '@/lib/config';
-import { fetchMembers, inviteMember } from '@/lib/data';
+import { deleteBusiness, fetchMembers, inviteMember } from '@/lib/data';
+import { bookingEnabled } from '@/lib/booking';
 import { isRestaurant } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 import type { BusinessMember } from '@/lib/types';
-import { signOut, useAuth } from '@/providers/auth';
+import { deleteAccount, signOut, useAuth } from '@/providers/auth';
 import { useBusinesses, useCurrentBusiness } from '@/providers/business';
+import { usePark } from '@/providers/park';
 
 export default function More() {
   const b = useCurrentBusiness();
-  const { session } = useAuth();
-  const { prefs, setPrefs, businesses } = useBusinesses();
+  const { session, isSuperadmin } = useAuth();
+  const { prefs, setPrefs, businesses, refresh } = useBusinesses();
+  const park = usePark();
   const [members, setMembers] = useState<BusinessMember[]>([]);
   const [email, setEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletingPage, setDeletingPage] = useState(false);
   const owner = b.user_id === session?.user.id;
   const me = session?.user.email ?? '';
 
@@ -53,6 +58,59 @@ export default function More() {
   async function resetPassword() {
     const { error } = await supabase.auth.resetPasswordForEmail(me, { redirectTo: `${SITE_URL}/linktree/reset-password` });
     Alert.alert(error ? 'Couldn’t send the email' : 'Check your inbox', error ? error.message : `We sent a password reset link to ${me}.`);
+  }
+
+  const pageKind = b.type === 'businesscard' ? 'business card' : b.type === 'socialtree' ? 'social tree' : 'page';
+
+  function confirmDeletePage() {
+    Alert.alert(`Delete “${b.name}”?`, `This ${pageKind} and its public link stop working, and its links, photos, products, menu, orders, bookings and stats are deleted.\n\nThis can’t be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: `Delete ${pageKind}`, style: 'destructive', onPress: () => void runDeletePage() },
+    ]);
+  }
+
+  async function runDeletePage() {
+    if (!session) return;
+    setDeletingPage(true);
+    try {
+      await deleteBusiness(b.id);
+      // Leave this screen before the list refreshes: it can't render without a business.
+      router.replace('/');
+      await refresh();
+    } catch (e) {
+      setDeletingPage(false);
+      Alert.alert('Couldn’t delete', e instanceof Error ? e.message : 'Try again');
+    }
+  }
+
+  function confirmDelete() {
+    const ownedCount = businesses.filter((x) => x.user_id === session?.user.id).length;
+    const what = ownedCount
+      ? `This permanently deletes ${me}, your ${ownedCount === 1 ? 'page' : `${ownedCount} pages`} with all links, menus, orders and bookings, and your Park Alert vehicles and messages.`
+      : `This permanently deletes ${me} and your Park Alert vehicles and messages.`;
+    Alert.alert('Delete your account?', `${what}\n\nThis can’t be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete account',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Are you sure?', 'Your account and all its data will be gone for good.', [
+            { text: 'Keep my account', style: 'cancel' },
+            { text: 'Delete forever', style: 'destructive', onPress: () => void runDelete() },
+          ]),
+      },
+    ]);
+  }
+
+  async function runDelete() {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      // Signing out sends the app back to the login screen.
+    } catch (e) {
+      setDeleting(false);
+      Alert.alert('Couldn’t delete your account', `${e instanceof Error ? e.message : 'Something went wrong.'}\n\nTry again, or email hello@amigotap.com and we’ll delete it for you.`);
+    }
   }
 
   return (
@@ -105,6 +163,20 @@ export default function More() {
       <View style={{ gap: 12 }}>
         <SectionLabel>Account</SectionLabel>
         <Card style={{ paddingVertical: 4 }}>
+          {(bookingEnabled(b) || b.type === 'linkpage') && (
+            <Row
+              title="Appointments"
+              subtitle={bookingEnabled(b) ? 'Bookings, staff on leave' : 'Off · set up on the web'}
+              right={<Chevron />}
+              onPress={() => router.push('/appointments')}
+            />
+          )}
+          <Row
+            title="Park Alert"
+            subtitle={park.unread ? `${park.unread} new message${park.unread === 1 ? '' : 's'}` : 'QR sticker for your vehicle'}
+            right={<Chevron />}
+            onPress={() => router.push('/vehicles')}
+          />
           {businesses.length > 1 && <Row title="Switch business" value={`${businesses.length}`} right={<Chevron />} onPress={() => router.push('/switch-business')} />}
           <Row title="Edit page on the web" right={<Chevron />} onPress={() => WebBrowser.openBrowserAsync(`${SITE_URL}/linktree/admin/${b.id}`)} />
           <Row title="Reset password" subtitle={me} right={<Chevron />} onPress={resetPassword} />
@@ -120,6 +192,9 @@ export default function More() {
             ])
           }
         />
+        {isSuperadmin && <Button title={`Delete this ${pageKind}`} variant="destructive" small onPress={confirmDeletePage} loading={deletingPage} />}
+        <Button title="Delete account" variant="destructive" small onPress={confirmDelete} loading={deleting} />
+        <Text style={[type.caption, { textAlign: 'center' }]}>Deletes your login and all your AmigoTap data. This can’t be undone.</Text>
       </View>
     </Screen>
   );

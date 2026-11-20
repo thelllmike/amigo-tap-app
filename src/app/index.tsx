@@ -14,5 +14,7 @@ export default function Index() {
   // Wait for the list so a returning owner lands straight back in their business.
   if (loading) return <Splash />;
   if (current || businesses.length === 1) return <Redirect href={current ? '/home' : '/businesses'} />;
+  // No business: a driver using Park Alert.
+  if (businesses.length === 0) return <Redirect href="/vehicles" />;
   return <Redirect href="/businesses" />;
 }
