@@ -223,6 +223,33 @@ export async function inviteMember(businessId: string, email: string) {
   if (res.error) throw new Error(res.error.code === '23505' ? 'That person already has access here.' : res.error.message);
 }
 
+/* ── Deleting ── */
+
+/**
+ * Storage paths an item's rows point at (supabase/delete-with-images.sql in the
+ * web repo). Read them BEFORE deleting the row; afterwards they're gone.
+ */
+export async function filePathsFor(fn: 'business_file_paths' | 'vehicle_file_paths' | 'my_file_paths', args?: Record<string, string>) {
+  const { data, error } = await supabase.rpc(fn, args);
+  return error ? [] : ((data as string[] | null) ?? []);
+}
+
+/** Best effort: a leftover file must never make a successful delete look failed. */
+export async function removeFiles(paths: string[]) {
+  for (let i = 0; i < paths.length; i += 100) {
+    await supabase.storage.from(ASSET_BUCKET).remove(paths.slice(i, i + 100)).catch(() => {});
+  }
+}
+
+/** Deletes a page (link page, business card or social tree) the user owns, with all its data and images. */
+export async function deleteBusiness(id: string, userId: string) {
+  const files = await filePathsFor('business_file_paths', { p_business: id });
+  const { data, error } = await supabase.from('businesses').delete().eq('id', id).eq('user_id', userId).select('id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Only the owner can delete this page.');
+  await removeFiles(files);
+}
+
 /* ── Uploads ── */
 
 /** Uploads a picked image to the same bucket and folder layout the web editor uses. */
@@ -261,8 +288,10 @@ export async function muteVehicle(id: string, minutes: number | null) {
 }
 
 export async function deleteVehicle(id: string) {
+  const files = await filePathsFor('vehicle_file_paths', { p_vehicle: id });
   const { error } = await supabase.from('vehicles').delete().eq('id', id);
   if (error) throw new Error(error.message);
+  await removeFiles(files);
 }
 
 /** The owner's chats, newest first, with each chat's latest message. */
