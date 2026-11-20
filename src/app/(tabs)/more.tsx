@@ -73,7 +73,7 @@ export default function More() {
     if (!session) return;
     setDeletingPage(true);
     try {
-      await deleteBusiness(b.id, session.user.id);
+      await deleteBusiness(b.id);
       // Leave this screen before the list refreshes: it can't render without a business.
       router.replace('/');
       await refresh();

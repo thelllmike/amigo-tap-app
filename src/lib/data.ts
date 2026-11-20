@@ -229,7 +229,7 @@ export async function inviteMember(businessId: string, email: string) {
  * Storage paths an item's rows point at (supabase/delete-with-images.sql in the
  * web repo). Read them BEFORE deleting the row; afterwards they're gone.
  */
-export async function filePathsFor(fn: 'business_file_paths' | 'vehicle_file_paths' | 'my_file_paths', args?: Record<string, string>) {
+export async function filePathsFor(fn: 'vehicle_file_paths' | 'my_file_paths', args?: Record<string, string>) {
   const { data, error } = await supabase.rpc(fn, args);
   return error ? [] : ((data as string[] | null) ?? []);
 }
@@ -242,12 +242,11 @@ export async function removeFiles(paths: string[]) {
 }
 
 /** Deletes a page (link page, business card or social tree) the user owns, with all its data and images. */
-export async function deleteBusiness(id: string, userId: string) {
-  const files = await filePathsFor('business_file_paths', { p_business: id });
-  const { data, error } = await supabase.from('businesses').delete().eq('id', id).eq('user_id', userId).select('id');
+export async function deleteBusiness(id: string) {
+  // One transaction in the database (supabase/delete-with-images.sql); returns the files to remove.
+  const { data: files, error } = await supabase.rpc('delete_business', { p_business: id });
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error('Only the owner can delete this page.');
-  await removeFiles(files);
+  await removeFiles((files as string[] | null) ?? []);
 }
 
 /* ── Uploads ── */
