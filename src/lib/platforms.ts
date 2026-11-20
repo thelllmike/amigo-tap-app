@@ -82,3 +82,23 @@ export function linkHref(platform: string, url: string) {
   if (platform === 'phone' && !url.startsWith('tel:')) return `tel:${url}`;
   return url;
 }
+
+/** The "Add a link" tile a stored link belongs to; anything unknown is Custom. */
+export function platformForLink(platform: string, label?: string | null): PlatformDef {
+  const byLabel = label ? PLATFORMS.find((p) => p.platform === 'other' && p.label?.toLowerCase() === label.toLowerCase()) : undefined;
+  return (
+    byLabel ??
+    PLATFORMS.find((p) => p.platform === platform && p.platform !== 'other') ??
+    PLATFORMS.find((p) => p.key === 'custom')!
+  );
+}
+
+/** The reverse of toUrl: what to show in the box when editing a stored link. */
+export function inputFromUrl(def: PlatformDef, url: string) {
+  if (def.phone) {
+    const d = url.replace(/^(tel:|https?:\/\/wa\.me\/)/i, '').replace(/\D/g, '');
+    return d.startsWith('94') ? d.slice(2) : d;
+  }
+  if (def.key === 'email') return url.replace(/^mailto:/i, '');
+  return url.replace(/^https?:\/\//i, '');
+}

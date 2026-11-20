@@ -121,7 +121,7 @@ export function LinksManager({ pushed }: { pushed?: boolean }) {
         </View>
         <Button title="Add link" icon={Plus} small onPress={() => router.push('/add-link')} style={{ height: 52 }} />
       </View>
-      <T style={{ color: C.muted }}>Drag ⋮⋮ to reorder. Long-press a link to remove it. Changes go live instantly.</T>
+      <T style={{ color: C.muted }}>Tap a link to edit it. Drag ⋮⋮ to reorder. Changes go live instantly.</T>
 
       {links === null ? (
         <ActivityIndicator color={C.accent} style={{ marginTop: 40 }} />
@@ -143,6 +143,7 @@ export function LinksManager({ pushed }: { pushed?: boolean }) {
               onDrag={(dy) => setDrag({ index: i, dy })}
               onDrop={(dy) => drop(i, dy)}
               onToggle={(on) => toggle(link, on)}
+              onPress={() => router.push({ pathname: '/add-link', params: { id: link.id } })}
               onLongPress={() => remove(link)}
             />
           ))}
@@ -161,6 +162,7 @@ function LinkRow({
   onDrag,
   onDrop,
   onToggle,
+  onPress,
   onLongPress,
 }: {
   link: SocialLink;
@@ -171,6 +173,7 @@ function LinkRow({
   onDrag: (dy: number) => void;
   onDrop: (dy: number) => void;
   onToggle: (on: boolean) => void;
+  onPress: () => void;
   onLongPress: () => void;
 }) {
   const badge = linkBadge(link.platform, link.label);
@@ -199,7 +202,10 @@ function LinkRow({
 
   return (
     <Pressable
+      onPress={onPress}
       onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityHint="Opens the link to edit it"
       style={[
         styles.row,
         { top: index * STEP, transform: [{ translateY: dy }, { scale: dragging ? 1.03 : 1 }] },
