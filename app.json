@@ -2,7 +2,7 @@
   "expo": {
     "name": "AmigoTap",
     "slug": "amigotap-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "amigotap",
@@ -17,7 +17,9 @@
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "5Q7NL6NTTJ",
+      "buildNumber": "3"
     },
     "android": {
       "package": "com.amigotap.owner",
@@ -30,6 +32,15 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.NFC"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "web": {
@@ -48,7 +59,14 @@
       ],
       "expo-secure-store",
       "expo-sharing",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
       "expo-font",
       [
         "expo-notifications",
@@ -59,21 +77,23 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "AmigoTap uses your photos for your page's logo and menu pictures."
+          "photosPermission": "AmigoTap uses your photos for your page's logo and menu pictures.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [
         "react-native-nfc-manager",
         {
           "nfcPermission": "AmigoTap uses NFC to read AmigoTap cards and write your page link to a tag.",
-          "includeNdefEntitlement": true
+          "includeNdefEntitlement": false
         }
       ],
       [
         "react-native-app-clip",
         {
           "name": "AmigoTap Clip",
-          "deploymentTarget": "16.4",
+          "deploymentTarget": "17.0",
           "excludedPackages": [
             "expo-dev-client",
             "expo-dev-launcher",
@@ -82,7 +102,8 @@
             "expo-image-picker",
             "expo-audio",
             "expo-notifications"
-          ]
+          ],
+          "bundleIdSuffix": "appclip"
         }
       ],
       [
