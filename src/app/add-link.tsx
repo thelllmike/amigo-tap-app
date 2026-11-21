@@ -1,25 +1,59 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { X } from 'lucide-react-native';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, IconButton } from '@/components/ui/button';
 import { Field } from '@/components/ui/input';
 import { T } from '@/components/ui/text';
-import { C, F, R, S } from '@/constants/theme';
-import { addLink } from '@/lib/data';
-import { PLATFORMS, type PlatformDef } from '@/lib/platforms';
+import { C, F, R, S, type } from '@/constants/theme';
+import { addLink, deleteLink, fetchLink, updateLink } from '@/lib/data';
+import { PLATFORMS, inputFromUrl, linkTitle, platformForLink, type PlatformDef } from '@/lib/platforms';
+import type { SocialLink } from '@/lib/types';
 import { useCurrentBusiness } from '@/providers/business';
 
+/**
+ * Adds a link, or edits one when opened with ?id=.
+ * The box and the save button sit above the platform tiles, so the keyboard
+ * never covers what you're typing.
+ */
 export default function AddLink() {
   const b = useCurrentBusiness();
   const insets = useSafeAreaInsets();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const editing = !!id;
+
+  const [existing, setExisting] = useState<SocialLink | null>(null);
+  const [loading, setLoading] = useState(editing);
   const [def, setDef] = useState<PlatformDef>(PLATFORMS[0]);
   const [value, setValue] = useState('');
   const [label, setLabel] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchLink(id)
+      .then((link) => {
+        if (!link) throw new Error('That link no longer exists.');
+        const d = platformForLink(link.platform, link.label);
+        setExisting(link);
+        setDef(d);
+        setValue(inputFromUrl(d, link.url));
+        setLabel(d.key === 'custom' || d.key === 'website' ? (link.label ?? '') : '');
+      })
+      .catch((e) => {
+        Alert.alert('Couldn’t open the link', e instanceof Error ? e.message : '');
+        router.back();
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  // A link from a platform without its own tile (Tripadvisor, LinkedIn…) opens
+  // under Custom; keep its platform unless the owner picks a different tile.
+  const keepsPlatform = existing && def.key === platformForLink(existing.platform, existing.label).key;
+  const showLabel = def.key === 'custom' || def.key === 'website';
 
   async function save() {
     const input = value.trim();
@@ -28,26 +62,84 @@ export default function AddLink() {
     if (def.key === 'email' && !/^\S+@\S+\.\S+$/.test(input)) return setError('That doesn’t look like an email address');
     setBusy(true);
     setError(null);
+    const link = {
+      platform: keepsPlatform ? existing.platform : def.platform,
+      url: def.toUrl(input),
+      label: (showLabel ? label.trim() : '') || def.label || (keepsPlatform ? existing.label : null) || null,
+    };
     try {
-      await addLink(b.id, { platform: def.platform, url: def.toUrl(input), label: label.trim() || def.label || null });
+      if (existing) await updateLink(existing.id, link);
+      else await addLink(b.id, link);
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Couldn’t add the link');
+      setError(e instanceof Error ? e.message : 'Couldn’t save the link');
       setBusy(false);
     }
   }
 
+  function remove() {
+    if (!existing) return;
+    Alert.alert(`Remove ${linkTitle(existing.platform, existing.label)}?`, 'It disappears from your page right away.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteLink(existing.id);
+            router.back();
+          } catch (e) {
+            Alert.alert('Couldn’t remove the link', e instanceof Error ? e.message : '');
+          }
+        },
+      },
+    ]);
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={C.accent} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.root} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.root, { paddingBottom: insets.bottom + 24 }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag">
         <View style={styles.head}>
           <T v="section" style={{ fontSize: 28, lineHeight: 32 }}>
-            Add a link
+            {editing ? 'Edit link' : 'Add a link'}
           </T>
           <IconButton icon={X} label="Close" onPress={() => router.back()} />
         </View>
-        <T style={{ color: C.muted, marginTop: -8 }}>Choose a platform. We’ll format the link for you.</T>
 
+        <Field
+          label={def.field}
+          prefix={def.phone ? '+94' : undefined}
+          value={value}
+          onChangeText={(t) => {
+            setValue(t);
+            setError(null);
+          }}
+          placeholder={def.placeholder}
+          keyboardType={def.keyboard ?? 'default'}
+          autoCapitalize="none"
+          autoCorrect={false}
+          error={error}
+          returnKeyType="done"
+          onSubmitEditing={save}
+        />
+        {showLabel && <Field label="Button text (optional)" value={label} onChangeText={setLabel} placeholder="e.g. Book a shoot" />}
+        <Button title={editing ? 'Save changes' : `Add ${def.label ?? def.name}`} onPress={save} loading={busy} />
+
+        <View style={{ gap: 10, marginTop: 8 }}>
+          <Text style={type.label}>Platform</Text>
+          <T style={{ color: C.muted, marginTop: -4 }}>Choose one. We’ll format the link for you.</T>
+        </View>
         <View style={styles.grid}>
           {PLATFORMS.map((p) => {
             const on = p.key === def.key;
@@ -57,6 +149,7 @@ export default function AddLink() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: on }}
                 onPress={() => {
+                  if (p.key === def.key) return;
                   setDef(p);
                   setValue('');
                   setError(null);
@@ -73,26 +166,8 @@ export default function AddLink() {
           })}
         </View>
 
-        <Field
-          label={def.field}
-          prefix={def.phone ? '+94' : undefined}
-          value={value}
-          onChangeText={(t) => {
-            setValue(t);
-            setError(null);
-          }}
-          placeholder={def.placeholder}
-          keyboardType={def.keyboard ?? 'default'}
-          autoCapitalize="none"
-          autoCorrect={false}
-          error={error}
-          autoFocus
-        />
-        {(def.key === 'custom' || def.key === 'website') && <Field label="Button text (optional)" value={label} onChangeText={setLabel} placeholder="e.g. Book a shoot" />}
+        {existing && <Button title="Remove link" variant="destructive" onPress={remove} style={{ marginTop: 8 }} />}
       </ScrollView>
-      <View style={{ paddingHorizontal: S.sheet, paddingBottom: insets.bottom + 16, paddingTop: 8 }}>
-        <Button title={`Add ${def.label ?? def.name}`} onPress={save} loading={busy} />
-      </View>
     </KeyboardAvoidingView>
   );
 }
