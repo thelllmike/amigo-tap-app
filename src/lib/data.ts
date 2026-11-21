@@ -153,6 +153,14 @@ export async function addLink(businessId: string, link: { platform: string; url:
   must(await supabase.from('social_links').insert({ business_id: businessId, ...link, display_order }).select('id'));
 }
 
+export async function fetchLink(id: string): Promise<SocialLink | null> {
+  return (must(await supabase.from('social_links').select('*').eq('id', id).maybeSingle()) as SocialLink | null) ?? null;
+}
+
+export async function updateLink(id: string, link: { platform: string; url: string; label: string | null }) {
+  must(await supabase.from('social_links').update(link).eq('id', id).select('id'));
+}
+
 export async function setLinkActive(id: string, isActive: boolean) {
   must(await supabase.from('social_links').update({ is_active: isActive }).eq('id', id).select('id'));
 }
